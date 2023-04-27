@@ -24,7 +24,7 @@ var dragTarget = null;
 /**
  * Pixi sprite drage-start event
  */
-function onDragStart() {
+function onDragStart(event) {
   // 드래그 시
   this.alpha = 0.5;
   dragTarget = this;
@@ -117,26 +117,55 @@ export default {
      * https://pixijs.io/guides/basics/sprite-sheets.html
      */
 
-    app = new PIXI.Application({ background: '#1099bb' });
+    // Pixi initialize
+    app = new PIXI.Application({ background: '#eeeeee', width: 2000, height: 2000 });
     document.getElementById('canvas-container').appendChild(app.view);
 
     app.stage.interactive = true;
     app.stage.hitArea = app.screen;
+    app.stage.cursor = 'grab';
     app.stage.on('pointerup', onDragEnd);
     app.stage.on('pointerupoutside', onDragEnd);
 
     const container = document.getElementById('canvas-container');
     this.canvasZoomScale = 1; // zoom 값 초기화
 
+    const border = new PIXI.Graphics();
+    border.lineStyle(2, 0x000000, 0.2);
+    border.drawRect(0, 0, 20 * 58, 20 * 58);
+    app.stage.addChild(border);
+
     // zoom 기능 구현
     container.onwheel = (event) => {
-      let addend = event.deltaY < 0 ? -0.25 : 0.25;
+      event.preventDefault();
+      let addend = event.deltaY < 0 ? +0.25 : -0.25;
       const scale = app.stage.scale._x + addend;
 
       if (scale > 0) {
         app.stage.scale.set(scale);
         this.canvasZoomScale = scale;
       }
+    };
+
+    // panning 기능 구현
+    let isStagePanning = false; // 현재 panning 여부
+    let stagePanningMousePosition = { x: null, y: null }; // panning을 위한 mouse position 값 담는 변수
+
+    // ondrag 쓰지 않은 이유 -> 실제 드래그 가능한 객체로 설정하지 않으면 이벤트 발생하지 않음
+    container.onmousedown = (event) => {
+      isStagePanning = true;
+      stagePanningMousePosition = { x: event.offsetX, y: event.offsetY };
+    };
+    container.onmousemove = (event) => {
+      if (isStagePanning && !dragTarget) {
+        app.stage.x = app.stage.x + event.offsetX - stagePanningMousePosition.x;
+        app.stage.y = app.stage.y + event.offsetY - stagePanningMousePosition.y;
+        stagePanningMousePosition = { x: event.offsetX, y: event.offsetY };
+      }
+    };
+    container.onmouseup = () => {
+      isStagePanning = false;
+      stagePanningMousePosition = { x: null, y: null };
     };
   },
 };
@@ -145,6 +174,8 @@ export default {
 <!-- Add "scoped" attribute to limit CSS to this component only -->
 <style scoped>
 #canvas-container {
-  width: fit-content;
+  /* width: fit-content; */
+  width: 100%;
+  height: 100%;
 }
 </style>
